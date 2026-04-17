@@ -1,0 +1,45 @@
+groups:
+  - name: talentflow-service-alerts
+    interval: 30s
+    rules:
+
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is DOWN"
+          description: "{{ $labels.instance }} has been down for more than 1 minute."
+
+      - alert: HighErrorRate
+        expr: |
+          rate(http_request_duration_seconds_count{status=~"5.."}[5m])
+          / rate(http_request_duration_seconds_count[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate is {{ $value | humanizePercentage }} on {{ $labels.job }}"
+
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket[5m])
+          ) > 2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High P95 latency on {{ $labels.job }}"
+          description: "P95 latency is {{ $value }}s on {{ $labels.job }}"
+
+      - alert: HighCPU
+        expr: process_cpu_usage > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.job }}"
+          description: "CPU usage is {{ $value | humanizePercentage }}"

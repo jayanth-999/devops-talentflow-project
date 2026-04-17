@@ -1,0 +1,57 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: talentflow-ingress
+  namespace: talentflow
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - talentflow.example.com
+      secretName: talentflow-tls
+  rules:
+    - host: talentflow.example.com
+      http:
+        paths:
+          # Frontend
+          - path: /()(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 3000
+
+          # Job Service API
+          - path: /(api/v1/jobs)(/|$)(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: job-service
+                port:
+                  number: 8080
+
+          # User Service API
+          - path: /(api/v1/auth|api/v1/users)(/|$)(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8001
+
+          # Notification Service API
+          - path: /(api/v1/notifications)(/|$)(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: notification-service
+                port:
+                  number: 8002

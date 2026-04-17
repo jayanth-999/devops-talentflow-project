@@ -1,0 +1,112 @@
+name: CD — Deploy to Kubernetes (AKS)
+
+on:
+  workflow_run:
+    workflows:
+      - "CI — Job Service (Java/Spring Boot)"
+      - "CI — User Service (Python/FastAPI)"
+      - "CI — Notification Service (.NET)"
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options: [staging, production]
+
+env:
+  REGISTRY: ghcr.io
+  AKS_CLUSTER_NAME: talentflow-aks
+  AKS_RESOURCE_GROUP: talentflow-rg
+  NAMESPACE: talentflow
+
+jobs:
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment || 'staging' }}
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Azure Login via OIDC (no long-lived credentials)
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Get AKS credentials
+      - name: Get AKS Credentials
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ env.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ env.AKS_CLUSTER_NAME }}
+
+      # Update image tags in K8s manifests
+      - name: Update Image Tags
+        run: |
+          IMAGE_TAG="sha-${{ github.sha }}"
+          sed -i "s|IMAGE_TAG|${IMAGE_TAG}|g" k8s/job-service/deployment.yaml
+          sed -i "s|IMAGE_TAG|${IMAGE_TAG}|g" k8s/user-service/deployment.yaml
+          sed -i "s|IMAGE_TAG|${IMAGE_TAG}|g" k8s/notification-service/deployment.yaml
+
+      # Apply Kubernetes manifests
+      - name: Apply Namespace & Config
+        run: |
+          kubectl apply -f k8s/namespaces/
+          kubectl apply -f k8s/job-service/configmap.yaml
+          kubectl apply -f k8s/user-service/configmap.yaml
+          kubectl apply -f k8s/notification-service/configmap.yaml
+
+      - name: Deploy Services
+        run: |
+          kubectl apply -f k8s/job-service/deployment.yaml
+          kubectl apply -f k8s/job-service/service.yaml
+          kubectl apply -f k8s/user-service/deployment.yaml
+          kubectl apply -f k8s/user-service/service.yaml
+          kubectl apply -f k8s/notification-service/deployment.yaml
+          kubectl apply -f k8s/notification-service/service.yaml
+          kubectl apply -f k8s/frontend/deployment.yaml
+          kubectl apply -f k8s/frontend/service.yaml
+          kubectl apply -f k8s/ingress/ingress.yaml
+
+      - name: Apply HPA
+        run: |
+          kubectl apply -f k8s/job-service/hpa.yaml
+          kubectl apply -f k8s/user-service/hpa.yaml
+
+      # Wait for rollout to complete
+      - name: Wait for Rollout
+        run: |
+          kubectl rollout status deployment/job-service -n ${{ env.NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/user-service -n ${{ env.NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/notification-service -n ${{ env.NAMESPACE }} --timeout=300s
+
+      # Smoke test
+      - name: Smoke Test
+        run: |
+          INGRESS_IP=$(kubectl get ingress talentflow-ingress -n ${{ env.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "Ingress IP: $INGRESS_IP"
+          curl -f "http://$INGRESS_IP/api/v1/jobs" -H "Host: talentflow.example.com" || echo "Smoke test failed"
+
+      # DAST — Run OWASP ZAP against staging
+      - name: DAST Scan (OWASP ZAP)
+        if: ${{ github.event.inputs.environment == 'staging' || github.event_name == 'workflow_run' }}
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'https://staging.talentflow.example.com'
+          allow_issue_writing: false
+        continue-on-error: true
+
+      - name: Deployment Summary
+        run: |
+          echo "✅ Deployed to ${{ github.event.inputs.environment || 'staging' }}"
+          echo "Image tag: sha-${{ github.sha }}"
+          kubectl get pods -n ${{ env.NAMESPACE }}

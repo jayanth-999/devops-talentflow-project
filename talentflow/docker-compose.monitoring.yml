@@ -1,0 +1,104 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TalentFlow — Monitoring Stack
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  talentflow-net:
+    external: true
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+
+services:
+
+  # Prometheus — metrics collection
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: talentflow-prometheus
+    networks: [talentflow-net]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=15d'
+    restart: unless-stopped
+
+  # Grafana — dashboards
+  grafana:
+    image: grafana/grafana:11.2.2
+    container_name: talentflow-grafana
+    networks: [talentflow-net]
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_FEATURE_TOGGLES_ENABLE: publicDashboards
+    restart: unless-stopped
+
+  # Loki — log aggregation
+  loki:
+    image: grafana/loki:3.2.0
+    container_name: talentflow-loki
+    networks: [talentflow-net]
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./observability/loki/loki-config.yaml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  # Promtail — log shipper (Docker logs → Loki)
+  promtail:
+    image: grafana/promtail:3.2.0
+    container_name: talentflow-promtail
+    networks: [talentflow-net]
+    volumes:
+      - ./observability/loki/promtail-config.yaml:/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
+
+  # Jaeger — distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.61.0
+    container_name: talentflow-jaeger
+    networks: [talentflow-net]
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "6831:6831/udp" # Jaeger agent (Thrift UDP)
+      - "4318:4318"     # OTLP HTTP
+      - "14268:14268"   # Jaeger collector HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    restart: unless-stopped
+
+  # AlertManager
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: talentflow-alertmanager
+    networks: [talentflow-net]
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./observability/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    restart: unless-stopped

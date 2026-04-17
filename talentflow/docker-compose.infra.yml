@@ -1,0 +1,149 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TalentFlow — Infrastructure Only (for local development)
+# Runs: PostgreSQL, Redis, MongoDB, Kafka, Zookeeper, Kafka-UI
+# Usage: docker-compose -f docker-compose.infra.yml up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  talentflow-net:
+    name: talentflow-net
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  mongo-data:
+  kafka-data:
+  zookeeper-data:
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: talentflow-postgres
+    networks: [talentflow-net]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: talentflow-redis
+    networks: [talentflow-net]
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  mongodb:
+    image: mongo:7
+    container_name: talentflow-mongodb
+    networks: [talentflow-net]
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: notifications
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.7.1
+    container_name: talentflow-zookeeper
+    networks: [talentflow-net]
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.7.1
+    container_name: talentflow-kafka
+    networks: [talentflow-net]
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # PLAINTEXT for internal docker, PLAINTEXT_HOST for host machine access
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_CREATE_TOPICS: "user.registered:1:1,job.posted:1:1,application.sent:1:1"
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: talentflow-kafka-ui
+    networks: [talentflow-net]
+    depends_on: [kafka]
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+
+  # Notification service runs in Docker (requires .NET 8)
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: talentflow-notification-service
+    networks: [talentflow-net]
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8002:8002"
+    environment:
+      ASPNETCORE_URLS: http://+:8002
+      ASPNETCORE_ENVIRONMENT: Development
+      MongoDB__Uri: mongodb://mongodb:27017
+      MongoDB__Database: notifications
+      Kafka__BootstrapServers: kafka:29092
+      Notification__MockEmail: "true"
+    restart: unless-stopped
