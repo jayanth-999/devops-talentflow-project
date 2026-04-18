@@ -1,0 +1,55 @@
+# Automated Job Sync Implementation Plan
+
+To import jobs from external sources (like LinkedIn, Naukri, or open portals), we need a reliable way to fetch data and ingest it into our system. 
+
+> [!WARNING]
+> Sites like LinkedIn and Naukri heavily protect their data with aggressive anti-bot protection (CAPTCHAs/Cloudflare) and do not provide public APIs for extracting jobs. Building a web scraper for them is often brittle and gets blocked quickly. 
+
+To solve this while still giving you a production-grade DevOps experience, I propose we build an **Aggregator Service** using a reliable Open Job API (e.g. [Arbeitnow API](https://www.arbeitnow.com/api/job-board-api)) and deploy it using a **Kubernetes CronJob**.
+
+## User Review Required
+
+Does this architecture look good to you? Do you want to build this as a standalone Python script wrapped in a K8s CronJob, or would you prefer adding a `@Scheduled` task directly inside the existing Java `job-service`? 
+
+(A K8s CronJob is a highly recommended DevOps pattern to learn!)
+
+## Proposed Changes
+
+We will create a lightweight Python script that acts as an aggregator. It will fetch external jobs, adapt them to our schema, and submit them via our existing `job-service` REST API.
+
+### 1. The Job Aggregator Script
+
+#### [NEW] [job-sync.py](file:///d:/Devops_sample_projects/talentflow/scripts/aggregator/job-sync.py)
+- A Python script that queries an open external API for jobs.
+- Maps the external JSON into our `Job` payload (`title`, `description`, `company`, `location`, `jobType="REMOTE"`).
+- Uses `requests` to POST the payload to `http://job-service:8080/api/v1/jobs` using a dedicated "system" user ID.
+
+#### [NEW] [Dockerfile](file:///d:/Devops_sample_projects/talentflow/scripts/aggregator/Dockerfile)
+- A lightweight `python:3.11-alpine` Dockerfile to containerize the script.
+
+### 2. DevOps Automation (Kubernetes)
+
+#### [NEW] [cronjob.yaml](file:///d:/Devops_sample_projects/talentflow/k8s/job-aggregator/cronjob.yaml)
+- A `CronJob` manifest that runs the dockerized script on a schedule (e.g., `0 */6 * * *` — every 6 hours).
+- Provides environment variables for the target `job-service` URL.
+
+### 3. CI/CD Integration
+
+#### [NEW] [ci-aggregator.yml](file:///d:/Devops_sample_projects/talentflow/.github/workflows/ci-aggregator.yml)
+- A GitHub Actions workflow to build the `job-aggregator` Docker image and push it to GHCR whenever the script changes.
+
+#### [MODIFY] [cd-deploy.yml](file:///d:/Devops_sample_projects/talentflow/.github/workflows/cd-deploy.yml)
+- Add a step to `kubectl apply -f k8s/job-aggregator/cronjob.yaml` during deployments.
+
+## Open Questions
+
+1. **API Selection**: For learning purposes, is it acceptable to use a completely free open API like *Arbeitnow / RemoteOK*, rather than writing complex web-scraping logic designed specifically to bypass LinkedIn's CAPTCHAs?
+2. **Frequency**: Is scraping every 6 hours in Kubernetes fine, or do you want a different schedule?
+
+## Verification Plan
+
+### Automated Tests
+- We will trigger the `CronJob` manually via Kubernetes: `kubectl create job --from=cronjob/job-aggregator test-sync-run`.
+
+### Manual Verification
+- We can check the `job-service` Swagger UI or Frontend to ensure new external jobs flow smoothly into the system automatically.

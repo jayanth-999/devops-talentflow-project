@@ -29,6 +29,7 @@ public class ApplicationSentConsumer : BackgroundService
             GroupId = "notification-service-applications",
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoCommit = false,
+            AllowAutoCreateTopics = true,
         };
 
         using var consumer = new ConsumerBuilder<string, string>(consumerConfig).Build();

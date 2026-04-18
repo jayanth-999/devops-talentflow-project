@@ -6,6 +6,7 @@ on:
       - "CI — Job Service (Java/Spring Boot)"
       - "CI — User Service (Python/FastAPI)"
       - "CI — Notification Service (.NET)"
+      - "CI — Job Aggregator"
     branches: [main]
     types: [completed]
   workflow_dispatch:
@@ -56,6 +57,7 @@ jobs:
           sed -i "s|IMAGE_TAG|${IMAGE_TAG}|g" k8s/job-service/deployment.yaml
           sed -i "s|IMAGE_TAG|${IMAGE_TAG}|g" k8s/user-service/deployment.yaml
           sed -i "s|IMAGE_TAG|${IMAGE_TAG}|g" k8s/notification-service/deployment.yaml
+          sed -i "s|IMAGE_TAG|${IMAGE_TAG}|g" k8s/job-aggregator/cronjob.yaml
 
       # Apply Kubernetes manifests
       - name: Apply Namespace & Config
@@ -76,6 +78,7 @@ jobs:
           kubectl apply -f k8s/frontend/deployment.yaml
           kubectl apply -f k8s/frontend/service.yaml
           kubectl apply -f k8s/ingress/ingress.yaml
+          kubectl apply -f k8s/job-aggregator/cronjob.yaml
 
       - name: Apply HPA
         run: |

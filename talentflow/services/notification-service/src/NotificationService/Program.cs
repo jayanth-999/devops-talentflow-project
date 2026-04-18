@@ -88,11 +88,15 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // ── Middleware Pipeline ───────────────────────────────────────────────────────
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
+
+app.UseSerilogRequestLogging();
+app.UseCors();
+app.UseRouting();
+
+// Redirect root to swagger
+app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.UseSerilogRequestLogging();
 app.UseCors();

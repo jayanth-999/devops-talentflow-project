@@ -29,6 +29,7 @@ public class JobPostedConsumer : BackgroundService
             GroupId = "notification-service-jobs",
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoCommit = false,
+            AllowAutoCreateTopics = true,
         };
 
         using var consumer = new ConsumerBuilder<string, string>(consumerConfig).Build();

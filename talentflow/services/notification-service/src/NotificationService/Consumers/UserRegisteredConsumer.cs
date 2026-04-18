@@ -33,6 +33,7 @@ public class UserRegisteredConsumer : BackgroundService
             GroupId = "notification-service-user",
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoCommit = false,
+            AllowAutoCreateTopics = true,
         };
 
         using var consumer = new ConsumerBuilder<string, string>(consumerConfig).Build();

@@ -21,9 +21,9 @@ public interface JobRepository extends JpaRepository<Job, String> {
         SELECT j FROM Job j
         WHERE (:status IS NULL OR j.status = :status)
         AND (:jobType IS NULL OR j.jobType = :jobType)
-        AND (:location IS NULL OR LOWER(j.location) LIKE LOWER(CONCAT('%', :location, '%')))
-        AND (:keyword IS NULL OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
-             OR LOWER(j.description) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        AND (cast(:location as string) IS NULL OR LOWER(j.location) LIKE LOWER(CONCAT('%', cast(:location as string), '%')))
+        AND (cast(:keyword as string) IS NULL OR LOWER(j.title) LIKE LOWER(CONCAT('%', cast(:keyword as string), '%'))
+             OR LOWER(j.description) LIKE LOWER(CONCAT('%', cast(:keyword as string), '%')))
         """)
     Page<Job> findWithFilters(
         @Param("status") JobStatus status,

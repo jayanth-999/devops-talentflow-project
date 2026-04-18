@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: job-aggregator
+  namespace: talentflow
+spec:
+  # Run every 6 hours
+  schedule: "0 */6 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: job-aggregator
+        spec:
+          containers:
+          - name: job-aggregator
+            image: ghcr.io/${{ github.repository }}-aggregator:IMAGE_TAG
+            imagePullPolicy: Always
+            env:
+            # Tell the script where the internal Job Service lives within the K8s cluster
+            - name: JOB_SERVICE_URL
+              value: "http://job-service:8080/api/v1/jobs"
+          restartPolicy: OnFailure

@@ -18,8 +18,8 @@ docker --version    # Need 24+
 ```
 Infrastructure (Docker):   PostgreSQL · Redis · MongoDB · Kafka · Zookeeper · Kafka-UI
                                  ↑         ↑        ↑       ↑
-Application Services:   user-service  job-service  notification-service
-(run natively)              :8001         :8080           :8002
+Application Services:   user-service  job-service  notification-service  job-aggregator(script)
+(run natively)              :8001         :8080           :8002               sync
                                 ↑
 Frontend:              React Dev Server (localhost:3000)
 ```
@@ -90,7 +90,8 @@ pytest tests/ -v --cov=app --cov-report=term-missing
 cd d:\Devops_sample_projects\talentflow\services\job-service
 
 # Run (Maven downloads dependencies the first time — takes ~2 min)
-mvn spring-boot:run
+# Note: Always run `clean` first to avoid Spring Data JPA compilation cache issues locally!
+mvn clean spring-boot:run
 ```
 
 ✅ Open: <http://localhost:8080/swagger-ui.html>
@@ -115,6 +116,14 @@ cd d:\Devops_sample_projects\talentflow\services\notification-service\src\Notifi
 # Run
 dotnet run
 ```
+
+> **Security Policy Block?**  
+> If `dotnet run` fails with **"An Application Control policy has blocked this file"** (e.g. WDAC or AppLocker is enabled on your machine restricting local `.exe` execution), you can bypass it by running the compiled `.dll` directly through the trusted `dotnet` host:
+> ```powershell
+> dotnet build
+> dotnet bin\Debug\net10.0\NotificationService.dll
+> ```
+> Alternatively, you can skip local execution and just run this service via Docker (see Step 6).
 
 ✅ Open: <http://localhost:8002/swagger>  
 ✅ Health: <http://localhost:8002/health>  
@@ -165,7 +174,24 @@ npm test
 
 ---
 
-## Step 6: Full Docker Compose (Production-like)
+## Step 6: Job Aggregator Script (Python)
+
+To pull real external jobs into the `job-service`, run the aggregator script independently. 
+
+```powershell
+cd d:\Devops_sample_projects\talentflow\scripts\aggregator
+
+# Install dependencies (first time only)
+pip install -r requirements.txt
+
+# Run the sync
+python job-sync.py
+```
+> **Note:** Make sure `job-service` (Step 3) is running first, as the aggregator pushes data directly to its REST API.
+
+---
+
+## Step 7: Full Docker Compose (Production-like)
 
 Once all services work locally, run the entire stack in Docker:
 
