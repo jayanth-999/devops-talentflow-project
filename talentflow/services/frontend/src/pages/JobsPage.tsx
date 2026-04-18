@@ -117,7 +117,7 @@ function JobCard({ job }: { job: Job }) {
           </div>
         </div>
         <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '0.75rem', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-          {job.description}
+          {job.description.replace(/<[^>]*>?/gm, '')}
         </p>
       </div>
     </Link>

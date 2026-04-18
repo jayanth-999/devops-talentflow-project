@@ -71,7 +71,7 @@ export default function JobDetailPage() {
         <hr style={{ borderColor: '#334155', marginBottom: '1.25rem' }} />
 
         <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Job Description</h2>
-        <p style={{ color: '#cbd5e1', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{job.description}</p>
+        <div style={{ color: '#cbd5e1', lineHeight: 1.8, whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: job.description }} />
       </div>
 
       {/* Apply Section */}
