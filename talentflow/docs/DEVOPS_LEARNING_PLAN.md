@@ -9,10 +9,13 @@ This 30-day sprint is designed specifically around the **TalentFlow** project ar
 
 - **Day 1: Version Control Mastery**
   - **Task:** Learn advanced Git (`rebase`, `cherry-pick`, `bisect`). Branch off `main` in TalentFlow, intentionally create a merge conflict in `job-service`, and resolve it.
+  - 📖 **[View Day-1 Notes: Git Scenarios & Commands](./learning/day-1-git/README.md)**
 - **Day 2: Linux & Shell Scripting**
   - **Task:** Write a simple Bash/PowerShell script that automatically checks if port `8080`, `8001`, and `8002` are in use on your machine before starting TalentFlow, and kills the blocking processes if they are.
+  - 📖 **[View Day-2 Notes: Shell Scripting & Automation (Cron)](./learning/day-2-scripting/README.md)**
 - **Day 3: Networking Basics (DNS, TCP/IP, Ports)**
   - **Task:** Trace the lifecycle of a web request. What happens when a user navigates to `talentflow.example.com` and hits the Ingress controller? Map out the ports used across all TalentFlow backing services.
+  - 📖 **[View Day-3 Notes: System Architecture, Kafka, & Redis](./learning/day-3-networking/README.md)**
 - **Day 4: Storage & File Systems**
   - **Task:** Understand stateless vs stateful design. Look at how PostgreSQL and MongoDB persist data. 
 - **Day 5: Week 1 Project Review**
