@@ -1,5 +1,5 @@
 # ── Stage 1: Build ─────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS builder
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS builder
 
 WORKDIR /build
 
@@ -14,7 +14,7 @@ RUN dotnet publish ./src/NotificationService/NotificationService.csproj \
 
 
 # ── Stage 2: Runtime ───────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 # Security: non-root user
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser

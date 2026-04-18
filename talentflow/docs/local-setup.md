@@ -8,7 +8,7 @@ Open PowerShell and verify all tools are installed:
 python --version    # Need 3.11+
 java -version       # Need 17+
 mvn -version        # Need 3.8+
-dotnet --version    # Need 8.0+
+dotnet --version    # Need 10.0+
 node --version      # Need 18+
 docker --version    # Need 24+
 ```
@@ -103,7 +103,7 @@ mvn test
 
 ---
 
-## Step 4: Notification Service (.NET 8 / ASP.NET Core)
+## Step 4: Notification Service (.NET 10 / ASP.NET Core)
 
 The notification service consumes Kafka events and stores records in MongoDB.
 Email sending is **mocked by default** (`MockEmail: true` in `appsettings.json`) so no
