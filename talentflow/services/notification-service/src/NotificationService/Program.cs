@@ -6,6 +6,8 @@ using Prometheus;
 using Serilog;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Resources;
+using OpenTelemetry.Exporter;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,22 +42,32 @@ builder.Services.AddHostedService<ApplicationSentConsumer>();
 builder.Services.AddHostedService<JobPostedConsumer>();
 
 // ── Health Checks ─────────────────────────────────────────────────────────────
+// Manual MongoDB ping to avoid package version conflicts with MongoDB.Driver 2.29
 builder.Services.AddHealthChecks()
-    .AddMongoDb(mongoUri, name: "mongodb");
+    .Add(new HealthCheckRegistration(
+        "mongodb",
+        sp =>
+        {
+            var client = sp.GetRequiredService<IMongoClient>();
+            return new MongoHealthCheck(client);
+        },
+        failureStatus: null,
+        tags: ["db", "mongodb"]));
 
 // ── OpenTelemetry ─────────────────────────────────────────────────────────────
 var jaegerHost = builder.Configuration["Jaeger:AgentHost"] ?? "localhost";
 var jaegerPort = int.Parse(builder.Configuration["Jaeger:AgentPort"] ?? "6831");
+
+var otlpEndpoint = builder.Configuration["Jaeger:OtlpEndpoint"] ?? $"http://{jaegerHost}:4317";
 
 builder.Services.AddOpenTelemetry()
     .WithTracing(trace => trace
         .SetResourceBuilder(ResourceBuilder.CreateDefault()
             .AddService("notification-service"))
         .AddAspNetCoreInstrumentation()
-        .AddJaegerExporter(o =>
+        .AddOtlpExporter(otlp =>
         {
-            o.AgentHost = jaegerHost;
-            o.AgentPort = jaegerPort;
+            otlp.Endpoint = new Uri(otlpEndpoint);
         }));
 
 // ── Controllers & Swagger ────────────────────────────────────────────────────

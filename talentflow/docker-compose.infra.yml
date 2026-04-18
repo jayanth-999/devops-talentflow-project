@@ -125,25 +125,6 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
 
-  # Notification service runs in Docker (requires .NET 8)
-  notification-service:
-    build:
-      context: ./services/notification-service
-      dockerfile: Dockerfile
-    container_name: talentflow-notification-service
-    networks: [talentflow-net]
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    ports:
-      - "8002:8002"
-    environment:
-      ASPNETCORE_URLS: http://+:8002
-      ASPNETCORE_ENVIRONMENT: Development
-      MongoDB__Uri: mongodb://mongodb:27017
-      MongoDB__Database: notifications
-      Kafka__BootstrapServers: kafka:29092
-      Notification__MockEmail: "true"
-    restart: unless-stopped
+  # NOTE: notification-service has been moved to docker-compose.yml (full-stack compose).
+  # Infrastructure should only contain stateful backing services (postgres, redis, kafka, mongo).
+  # Run the full stack with: docker compose up -d --build

@@ -20,10 +20,15 @@
     <!-- OpenTelemetry Tracing -->
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.9.0" />
-    <PackageReference Include="OpenTelemetry.Exporter.Jaeger" Version="1.5.1" />
+    <!-- OTLP exporter (replaces deprecated Jaeger exporter from OTel 1.6+) -->
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.9.0" />
 
-    <!-- Health Checks -->
-    <PackageReference Include="AspNetCore.HealthChecks.MongoDb" Version="8.0.1" />
+    <!-- Health Checks (manual ping — avoids MongoDB.Driver version conflict) -->
+    <!-- AspNetCore.HealthChecks.MongoDb bundles its own MongoDB.Driver 2.22 which -->
+    <!-- conflicts with 2.29 above. We use the built-in IHealthCheck instead. -->
+
+    <!-- Swagger / OpenAPI -->
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.8.1" />
 
     <!-- Serilog Structured Logging -->
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.2" />
