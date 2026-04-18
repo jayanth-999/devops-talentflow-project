@@ -69,7 +69,8 @@ def sync_jobs(jobs):
     for payload in jobs:
         try:
             logger.info(f"Posting job: {payload['title']} at {payload['company']}")
-            res = requests.post(JOB_SERVICE_URL, json=payload, timeout=5)
+            headers = {"X-User-Id": SYSTEM_USER_ID}
+            res = requests.post(JOB_SERVICE_URL, json=payload, headers=headers, timeout=5)
             
             if res.status_code in [200, 201]:
                 success_count += 1
