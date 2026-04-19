@@ -36,6 +36,7 @@ This 30-day sprint is designed specifically around the **TalentFlow** project ar
   - **Task:** Destroy your local Docker setup without losing data. Learn how Docker Named Volumes retain the Postgres and Mongo data even when containers are deleted.
 - **Day 10: Week 2 Project Review**
   - **Task:** Write a completely new `Dockerfile` for the React Frontend and test running it locally using NGINX to serve the static Vite build.
+  - 📖 **[Bonus Module: The DevOps Troubleshooting & Incident Playbook](./learning/troubleshooting-playbook.md)**
 
 ---
 
