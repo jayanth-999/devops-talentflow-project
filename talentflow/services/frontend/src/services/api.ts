@@ -15,11 +15,13 @@ export const jobClient = axios.create({
 // Attach JWT to every request
 const attachAuth = (client: typeof userClient) => {
   client.interceptors.request.use((config) => {
-    const token = useAuthStore.getState().accessToken
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-      // Forward user ID for backend authorization
-      config.headers['X-User-Id'] = useAuthStore.getState().user?.id ?? ''
+    const state = useAuthStore.getState()
+    if (state.accessToken) {
+      config.headers.set('Authorization', `Bearer ${state.accessToken}`)
+    }
+    // Forward user ID for backend authorization (independent of volatile access token)
+    if (state.user?.id) {
+      config.headers.set('X-User-Id', state.user.id)
     }
     return config
   })

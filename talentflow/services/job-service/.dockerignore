@@ -1,0 +1,9 @@
+.dockerignore
+.git
+.gitignore
+target/
+*.jar
+*.war
+.mvn/
+.idea
+.vscode

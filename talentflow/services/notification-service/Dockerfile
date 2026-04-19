@@ -10,7 +10,7 @@ RUN dotnet restore ./src/NotificationService/NotificationService.csproj
 # Copy source and publish
 COPY src ./src
 RUN dotnet publish ./src/NotificationService/NotificationService.csproj \
-    -c Release -o /app/publish --no-restore
+    -c Release -o /app/publish
 
 
 # ── Stage 2: Runtime ───────────────────────────────────────────────────────
